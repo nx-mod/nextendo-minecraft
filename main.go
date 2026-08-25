@@ -1,6 +1,6 @@
 // Command minecraft runs the Minecraft: Nintendo Switch Edition online servers (auth + secure) on the
 // Nextendo NEX stack — our own closed-source NEX implementation, with 
-// the previous stack code. It is the online server
+// the previous stack code. It is the transition target for closing the public
 // servers built on the previous stack.
 //
 // Two NEX servers run in one process:
@@ -116,9 +116,9 @@ func main() {
 	secureEndpoint.StartReaper()
 	go startDashboard(secureEndpoint, mm)
 
-	// When the auth is fronted by a TLS-passthrough proxy (the reverse proxy on the shared :443),
+	// When the auth is fronted by a TLS-passthrough proxy (a reverse-proxy on the shared :443),
 	// enable PROXY protocol so the auth sees the console's REAL IP. Without it the login PID is
-	// remembered under the reverse proxy's internal IP (127.0.0.1), and MK8's TICKETLESS secure CONNECT —
+	// remembered under a reverse-proxy's internal IP (10.0.1.x), and MK8's TICKETLESS secure CONNECT —
 	// which arrives on the host-published :60003 with the real client IP — can't RecallAuthPID it,
 	// falling back to an incrementing placeholder PID (1800000001, 1800000002, ...) the console
 	// doesn't recognise as itself -> Pia self-recognition fails -> SessionKeepFailed / comm error.
@@ -234,6 +234,7 @@ func resolveUser(username string, extraData []byte) (uint64, []byte, bool) {
 // rejected even though their HMAC is valid, without rotating the shared secret. Populated
 // per deployment.
 var revokedNexPayloads = map[string]bool{
+
 }
 // nextendoPIDFromToken validates a "nx2.<b64(pid.username.expiry)>.<b64(hmac)>"
 // token signed by the account service (HMAC-SHA256, "nex:" prefix).
@@ -255,7 +256,7 @@ func nextendoPIDFromToken(s string) (uint64, bool) {
 	if !hmac.Equal([]byte(want), []byte(parts[1])) {
 		return 0, false
 	}
-	if revokedNexPayloads[string(raw)] { // jeton fuité (release 1.6.5-win) — refusé malgré une signature valide
+	if revokedNexPayloads[string(raw)] { // jeton revoque : refuse malgre une signature valide
 		return 0, false
 	}
 	f := strings.SplitN(string(raw), ".", 3) // pid.username.expiry
